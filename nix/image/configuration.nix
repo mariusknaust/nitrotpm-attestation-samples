@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   lib,
   modulesPath,
@@ -7,7 +8,21 @@
   imports = [
     "${toString modulesPath}/profiles/minimal.nix"
     "${toString modulesPath}/profiles/qemu-guest.nix"
+    "${toString modulesPath}/profiles/hardened.nix"
   ];
+
+  # The scudo allocator from hardened profile does not build, reset it to libc
+  environment.memoryAllocator.provider = "libc";
+
+  # Erofs is required, which is excluded by the hardened profile
+  boot.blacklistedKernelModules = lib.mkForce (
+    let
+      hardenedModule = import "${toString modulesPath}/profiles/hardened.nix" {
+        inherit config pkgs lib modulesPath;
+      };
+    in
+    lib.remove "erofs" hardenedModule.config.content.boot.blacklistedKernelModules
+  );
 
   system.image = {
     id = lib.mkDefault "nixos-tee";
@@ -16,6 +31,17 @@
 
   boot.enableContainers = lib.mkDefault false;
   boot.initrd.systemd.enable = lib.mkDefault true;
+
+  boot.kernelParams = lib.mkAfter [
+    "panic=30"
+    "boot.panic_on_fail" # reboot the machine upon fatal boot issues
+    "lockdown=1"
+    "console=ttyS0,115200n8"
+    "console=tty0"
+    "random.trust_cpu=on"
+    "tpm_crb.force=1"
+    "systemd.gpt_auto=0" # Disable systemd-gpt-auto-generator to prevent e.g. ESP mounting
+  ];
 
   documentation.info.enable = lib.mkDefault false;
 

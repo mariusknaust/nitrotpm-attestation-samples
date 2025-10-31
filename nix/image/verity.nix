@@ -79,19 +79,10 @@ in {
   # and it is not a strict necessity
   system.activationScripts.usrbinenv = lib.mkForce "";
 
-  boot.kernelParams = [
-    "panic=30"
-    "boot.panic_on_fail" # reboot the machine upon fatal boot issues
-    "lockdown=1"
-    "console=ttyS0,115200n8"
-    "console=tty0"
-    "random.trust_cpu=on"
+  boot.kernelParams = lib.mkAfter [
     "systemd.verity=1"
     "systemd.verity_root_options=panic-on-corruption"
-    "tpm_crb.force=1"
-    "systemd.gpt_auto=0" # Disable systemd-gpt-auto-generator to prevent e.g. ESP mounting
   ];
-  #networking.hostName = lib.mkDefault "nixos";
 
   formatAttr = lib.mkForce "finalImage";
   fileExtension = lib.mkForce ".raw";
